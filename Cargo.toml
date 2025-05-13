@@ -1,0 +1,8 @@
+[package]
+name = "freelancia-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["tokio"]}
+tokio = { version = "1", features = ["full"]}
