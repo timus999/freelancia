@@ -1,3 +1,4 @@
+
 # Freelancia Backend (Rust + Axum)
 
 Freelancia is a modern freelance marketplace platform. This is the backend API built using **Rust** and **Axum**, focusing on speed, safety, and scalability.
@@ -54,3 +55,4 @@ Freelancia is a modern freelance marketplace platform. This is the backend API b
 
 ```bash
 cargo run
+
