@@ -1,0 +1,1 @@
+fn(axum::Json<SignupInput>, axum::extract::State<Pool<Sqlite>>) -> impl std::future::Future<Output = impl IntoResponse> {signup}

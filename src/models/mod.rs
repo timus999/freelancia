@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub mod user;
+
 #[derive(Serialize, Deserialize)]
 
 pub struct Job {
@@ -16,3 +18,4 @@ pub struct Freelancer{
     pub skills:Vec<String>,
     pub rating: f32,
 }
+

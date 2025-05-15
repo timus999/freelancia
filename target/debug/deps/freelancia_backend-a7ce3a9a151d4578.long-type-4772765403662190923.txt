@@ -1,0 +1,1 @@
+fn() -> impl std::future::Future<Output = axum::Json<Vec<{type error}, {type error}>>> {get_freelancers}

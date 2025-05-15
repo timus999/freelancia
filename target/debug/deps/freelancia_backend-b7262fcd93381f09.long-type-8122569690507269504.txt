@@ -1,0 +1,1 @@
+fn(axum::extract::State<Pool<Sqlite>>, axum::Json<{type error}>) -> impl std::future::Future<Output = Result<axum::Json<User>, (StatusCode, std::string::String)>> {signup}
