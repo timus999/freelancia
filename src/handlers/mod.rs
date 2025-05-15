@@ -8,6 +8,8 @@ use serde_json::json;
 use crate::models::{Job, Freelancer};
 
 pub mod auth;
+pub mod profile;
+pub mod auth_middleware;
 
 pub async fn check_health() -> impl IntoResponse {
     Json(json!({"status" : "ok"}))

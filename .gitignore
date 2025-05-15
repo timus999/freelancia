@@ -1,3 +1,4 @@
 target
 test.db
 test-journal
+.env
