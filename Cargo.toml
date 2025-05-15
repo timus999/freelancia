@@ -17,3 +17,5 @@ password-hash = "0.5"
 rand = "0.8"
 uuid = { version = "1" , features = ["v4", "serde"]}
 sqlx = { version = "0.7", features= ["sqlite", "runtime-tokio-rustls", "uuid", "macros"]}
+jsonwebtoken = "9.3.0"
+chrono = { version = "0.4", features = ["serde"] }

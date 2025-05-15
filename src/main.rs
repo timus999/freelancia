@@ -1,6 +1,8 @@
 use axum;
 use sqlx::SqlitePool;
 use freelancia_backend::routes;
+use dotenvy::dotenv;
+use std::env;
 
 // mod routes;
 // mod handlers;
@@ -9,9 +11,12 @@ use freelancia_backend::routes;
 
 async fn main(){
 
+    //load from .env
+    dotenv().ok();
+
     //connect to db
-    let db_url = "sqlite:///home/timus/Desktop/rust_programming/blockchain/freelancia_backend/test.db"; // or "sqlite:///full/path/to/test.db"
-    let pool = match SqlitePool::connect(db_url).await {
+    let db_url = env::var("DATABASE_URL").expect("databaseurl must be set in .env"); // or "sqlite:///full/path/to/test.db"
+    let pool = match SqlitePool::connect(&db_url).await {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to connect to DB: {e}");
