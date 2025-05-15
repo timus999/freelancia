@@ -1,7 +1,7 @@
 use axum::{Router, routing::get, routing::post};
 
 use crate::handlers::{print_msg, check_health, hello, get_jobs, get_freelancers, create_job, create_freelancer};
-use crate::handlers::auth::signup;
+use crate::handlers::auth::{signup, login};
 use sqlx::SqlitePool;
 
 pub fn create_routes() -> Router{
@@ -16,5 +16,6 @@ pub fn create_routes() -> Router{
 pub fn auth_routes(pool: SqlitePool) -> Router{
     Router::new()
         .route("/signup", post(signup))
+        .route("/login", post(login))
         .with_state(pool)
 }
