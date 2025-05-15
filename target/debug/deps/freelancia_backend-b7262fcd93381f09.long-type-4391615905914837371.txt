@@ -1,0 +1,1 @@
+fn(axum::Json<{type error}>) -> impl std::future::Future<Output = (StatusCode, axum::Json<{type error}>)> {create_freelancer}
