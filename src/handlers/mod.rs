@@ -4,7 +4,10 @@ use axum::{http::StatusCode, Json};
 use axum::response::IntoResponse;
 use serde_json::json;
 
+
 use crate::models::{Job, Freelancer};
+
+pub mod auth;
 
 pub async fn check_health() -> impl IntoResponse {
     Json(json!({"status" : "ok"}))
@@ -63,3 +66,4 @@ pub async fn create_job(Json(payload): Json<Job>) -> (StatusCode, Json<Job>){
 pub async fn create_freelancer(Json(payload): Json<Freelancer>) -> (StatusCode, Json<Freelancer>){
     (StatusCode::CREATED, Json(payload))
 }
+

@@ -1,0 +1,12 @@
+/home/timus/Desktop/rust_programming/blockchain/freelancia_backend/target/debug/deps/libargon2-e12c4617d51d678d.rmeta: /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/lib.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/algorithm.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/blake2b_long.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/block.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/error.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/params.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/version.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/../README.md
+
+/home/timus/Desktop/rust_programming/blockchain/freelancia_backend/target/debug/deps/argon2-e12c4617d51d678d.d: /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/lib.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/algorithm.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/blake2b_long.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/block.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/error.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/params.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/version.rs /home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/../README.md
+
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/lib.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/algorithm.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/blake2b_long.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/block.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/error.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/params.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/version.rs:
+/home/timus/.cargo/registry/src/index.crates.io-6f17d22bba15001f/argon2-0.5.3/src/../README.md:
