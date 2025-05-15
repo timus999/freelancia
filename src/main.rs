@@ -1,4 +1,4 @@
-use axum;
+use axum::{Router};
 use sqlx::SqlitePool;
 use freelancia_backend::routes;
 use dotenvy::dotenv;
@@ -26,13 +26,15 @@ async fn main(){
     println!("connected to database");
     //Define the route
     // let app = routes::create_routes(); 
-    let app2 = routes::auth_routes(pool); 
+    let app = Router::new()
+                .merge(routes::create_routes())
+                .merge(routes::auth_routes(pool)); 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
 
     //set the address
 
     //start the server 
-    axum::serve(listener, app2)
+    axum::serve(listener, app)
         .await
         .unwrap();
 }
