@@ -6,3 +6,6 @@ pub struct LoginInput {
     pub password: String,
 }
 
+pub struct AuthUser{
+    pub user_id: String,
+}
