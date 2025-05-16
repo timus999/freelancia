@@ -31,6 +31,24 @@ Freelancia is a modern freelance marketplace platform. This is the backend API b
 - `.env` used for managing secret keys securely
 
 ---
+## 🚀 Project Progress (May 15)
+
+### ✅ Backend Setup & Core Features Implemented
+
+- **Auth System (Axum)**
+  - `/signup` and `/login` endpoints.
+  - JWT generation with token-based authentication.
+  - Middleware for protected routes (`auth_required`, `client_only`, `freelancer_only`).
+  - **Hybrid Authentication Support**:
+    - Email/password login implemented.
+    - Wallet login structure added (signature verification TODO).
+- **User Model Enhancements**
+  - New fields: `wallet_address`, `verified_wallet`, `role` (client/freelancer).
+
+- **Job System (Basic)**
+  - Job schema/table added to DB.
+  - `POST /job`: Create job (Client only).
+  - `GET /job`: View all jobs (Freelancer only).
 
 ## 🔧 Run the Server
 

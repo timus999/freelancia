@@ -1,46 +1,32 @@
-use argon2::{Argon2, PasswordHash, PasswordVerifier, PasswordHasher};
-use password_hash::{SaltString};
-use rand::rngs::OsRng;
-use crate::models::jwt::Claims;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Header, EncodingKey};
-use crate::config;
-use chrono::{Utc, Duration};
+use std::env;
 
-pub fn hash_password(password: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| e.to_string())?
-        .to_string();
-    Ok(hash)
+use crate::models::jwt::Claims;
+
+pub fn hash_password(password: &String) -> Result<String, bcrypt::BcryptError> {
+    hash(password, DEFAULT_COST)
 }
 
-//verifies a password against a hash using Argon2
-pub fn verify_password(password: &str, hash: &str) -> Result<(), ()> {
-    let parsed_hash = PasswordHash::new(hash).map_err(|_| ())?;
-
-    Argon2::default()
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .map_err(|_| ())
+pub fn verify_password(password: &String, hashed: &String) -> Result<bool, bcrypt::BcryptError> {
+    verify(password, hashed)
 }
 
-//generates a jwt token for the given user ID
-pub fn generate_jwt(user_id: &str) -> Result<String, ()> {
-    let expiration = Utc::now()
-        .checked_add_signed(Duration::hours(24))
-        .unwrap()
-        .timestamp() as usize;
-
-    let claims = Claims{
-        sub: user_id.to_string(),
-        exp: expiration,
+pub fn generate_jwt(user_id: i64, role: String) -> Result<String, jsonwebtoken::errors::Error> {
+    let claims = Claims {
+        user_id,
+        role,
+        exp: (Utc::now() + Duration::hours(24)).timestamp() as usize,
     };
 
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(config::jwt_secret().as_bytes()),
+        &EncodingKey::from_secret(
+            env::var("JWT_SECRET")
+                .expect("JWT_SECRET must be set")
+                .as_ref(),
+        ),
     )
-    .map_err(|_| ())
 }
