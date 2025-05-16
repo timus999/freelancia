@@ -2,6 +2,7 @@ use axum::{Json, extract::State, http::StatusCode};
 use serde_json::json;
 use uuid::Uuid;
 use sqlx::SqlitePool;
+use validator::Validate;
 use crate::models::auth::LoginInput;
 use crate::models::user::{User, SignupInput};
 use crate::utils::hash_password;
@@ -13,18 +14,27 @@ pub async fn signup(
     State(pool): State<SqlitePool>,
     Json(payload): Json<SignupInput>,
 ) -> Result<Json<User>, StatusCode>{
+
+    //step-1: validate input using validator
+    if let Err(validation_errors) = payload.validate(){
+            eprintln!("Validation error: {:?}", validation_errors);
+            return Err(StatusCode::BAD_REQUEST);
+    }
+
+    //step-2: hash the password
     let hashed = match hash_password(&payload.password) {
         Ok(h) => h,
         Err(_) => return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     };
 
+    //step-3 create user model
     let user = User {
         id: Uuid::new_v4().to_string(),
         email: payload.email.clone(),
         password_hash: hashed,
     };
 
-    // Insert user into DB
+    //step-4: Insert user into DB
     let result = sqlx::query("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)")
         .bind(&user.id)
         .bind(&user.email)
