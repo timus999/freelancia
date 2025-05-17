@@ -4,3 +4,4 @@ test-journal
 .env
 migrations
 .sqlx
+tests

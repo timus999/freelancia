@@ -5,4 +5,4 @@ pub mod config;
 pub mod middleware;
 pub mod db;
 pub mod error;
-mod utils;
+pub mod utils;

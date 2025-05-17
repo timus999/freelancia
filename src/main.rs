@@ -17,7 +17,8 @@ async fn main(){
     //Define the route
     // let app = routes::create_routes(); 
     let app = Router::new()
-                .nest("/api",routes::create_routes(pool.clone()));
+                .nest("/api",routes::create_routes(pool.clone()))
+                .nest("/auth", routes::auth_routes(pool.clone()));
                 
     
     let listener= tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();

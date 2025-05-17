@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
     password TEXT, -- Hashed, nullable for Web3 users
-    wallet_address TEXT NOT NULL UNIQUE,
-    role TEXT NOT NULL CHECK(role IN ('freelancer', 'client')),
-    verified_wallet BOOLEAN DEFAULT FALSE
+    wallet_address TEXT UNIQUE,
+    role TEXT NOT NULL,
+    verified_wallet BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Jobs
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     job_ipfs_hash TEXT NOT NULL,
     posted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deadline TEXT NOT NULL,
-    client_id TEXT NOT NULL,
+    client_id INTEGER NOT NULL,
     FOREIGN KEY(client_id) REFERENCES users(id)
 );
 
@@ -62,4 +62,12 @@ CREATE TABLE IF NOT EXISTS reviews (
     review_ipfs_hash TEXT NOT NULL,
     FOREIGN KEY (job_id) REFERENCES jobs(id),
     FOREIGN KEY (reviewer_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS nonces (
+    wallet_address TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    created_at TEXT NOT NULL, -- ISO 8601
+    expires_at TEXT NOT NULL, -- ISO 8601
+    PRIMARY KEY (wallet_address, nonce)
 );
