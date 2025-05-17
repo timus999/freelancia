@@ -14,8 +14,12 @@ pub fn create_routes(pool: SqlitePool) -> Router{
         .route("/", get(print_msg))
         .route("/api/v1/ping", get(check_health))
         .route("/api/v1/hello", get(hello))
-        .merge(common::protected_routes(pool.clone()))
         .merge(client::router(pool.clone()))
         .merge(freelancer::router(pool))
+}
+
+pub fn auth_routes(pool:SqlitePool) -> Router{
+    Router::new()
+        .merge(common::protected_routes(pool))
 }
 

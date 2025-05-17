@@ -34,7 +34,7 @@ pub struct JobResponse {
     pub job_ipfs_hash: String,
     pub posted_at: String,
     pub deadline: String,
-    pub client_id: String,
+    pub client_id: i64,
 }
 
 #[derive(Serialize, Deserialize)]
