@@ -1,78 +1,367 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse, Extension};
 use serde_json::json;
-use uuid::Uuid;
 use sqlx::SqlitePool;
-use crate::models::auth::LoginInput;
-use crate::models::user::{User, SignupInput};
-use crate::utils::hash_password;
-use crate::utils::{verify_password, generate_jwt};
-
-
+use validator::Validate;
+use crate::models::auth::*;
+use crate::utils::*;
+use crate::error::AppError;
+use std::sync::Arc;
+use chrono::{Duration, Utc};
 
 pub async fn signup(
     State(pool): State<SqlitePool>,
-    Json(payload): Json<SignupInput>,
-) -> Result<Json<User>, StatusCode>{
-    let hashed = match hash_password(&payload.password) {
-        Ok(h) => h,
-        Err(_) => return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
-    };
+    Json(payload): Json<SignupRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    // Validate the payload structure and constraints
+    payload.validate().map_err(AppError::Validation)?;
 
-    let user = User {
-        id: Uuid::new_v4().to_string(),
-        email: payload.email.clone(),
-        password_hash: hashed,
-    };
-
-    // Insert user into DB
-    let result = sqlx::query("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)")
-        .bind(&user.id)
-        .bind(&user.email)
-        .bind(&user.password_hash)
-        .execute(&pool)
-        .await;
-    if let Err(e) = result {
-        eprint!("Failed to insert user: {:?}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    // Validate role against allowed values
+    let valid_roles = vec!["email_user", "wallet_user", "client", "freelancer"];
+    if !valid_roles.contains(&payload.role.as_str()) {
+        // Edge case: Invalid role provided
+        return Err(AppError::Validation(validator::ValidationErrors::new()));
     }
 
-    Ok(axum::Json(user))
+    // Ensure wallet_user or client roles provide wallet_address and signature
+    if (payload.role == "wallet_user" || payload.role == "client") &&
+        (payload.wallet_address.is_none() || payload.signature.is_none()) {
+        // Edge case: Missing wallet_address or signature for wallet-based roles
+        return Err(AppError::Validation(validator::ValidationErrors::new()));
+    }
+
+    // Ensure email_user provides a password
+    if payload.role == "email_user" && payload.password.is_none() {
+        // Edge case: Missing password for email_user role
+        return Err(AppError::Validation(validator::ValidationErrors::new()));
+    }
+
+    // Extract and hash password if provided
+    let password = payload.password.as_ref().ok_or_else(|| {
+        // Edge case: Password field is None when expected
+        AppError::Validation({
+            let mut errors = validator::ValidationErrors::new();
+            errors.add("password", validator::ValidationError::new("Password is required"));
+            errors
+        })
+    })?;
+
+    let hashed_password = hash_password(password)
+        .map_err(|_| AppError::Server("Failed to hash password".to_string()))?;
+
+    // Insert user into database with verified_wallet set to false
+    let result = sqlx::query!(
+        "INSERT INTO users (email, password, wallet_address, role, verified_wallet) VALUES (?, ?, ?, ?, ?)",
+        payload.email,
+        hashed_password,
+        payload.wallet_address,
+        payload.role,
+        false
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        // Edge case: Database constraint violation (e.g., duplicate email or wallet_address)
+        AppError::Database(e.to_string())
+    })?;
+
+    // Return success response with user_id
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({ "message": "User signed up", "user_id": result.last_insert_rowid() })),
+    ))
 }
 
-
-//login logic
 pub async fn login(
     State(pool): State<SqlitePool>,
-    Json(payload): Json<LoginInput>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+    Json(payload): Json<LoginRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    // Extract password from payload
+    let password = payload.password.as_ref().ok_or(AppError::Validation({
+        // Edge case: Password field is missing
+        let mut errors = validator::ValidationErrors::new();
+        errors.add("password", validator::ValidationError::new("Password is required"));
+        errors
+    }))?;
 
-    //fetch user by email
-    let user = sqlx::query_as!(
-        User,
+    // Fetch user by email
+    let user = sqlx::query!(
         r#"
-        SELECT id, email, password_hash FROM users WHERE email = ?
+        SELECT id AS "id!: i64", password, role
+        FROM users
+        WHERE email = ?
         "#,
         payload.email
     )
     .fetch_optional(&pool)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| AppError::Database(e.to_string()))?
+    .ok_or(AppError::Unauthorized("Invalid credentials".to_string()))?;
 
-    //check if user exist
-    let user = match user {
-        Some(u) => u,
-        None => return Err(StatusCode::UNAUTHORIZED),
-    };
+    // Verify password
+    let user_password = user.password.as_ref().ok_or(AppError::Server(
+        // Edge case: User exists but password is null in database
+        "User password not found".to_string(),
+    ))?;
 
-    //verify password
-    if verify_password(&payload.password, &user.password_hash).is_err(){
-        return Err(StatusCode::UNAUTHORIZED);
+    if !verify_password(password, user_password)
+        .map_err(|_| AppError::Server("Password verification failed".to_string()))?
+    {
+        // Edge case: Password does not match
+        return Err(AppError::Unauthorized("Invalid credentials".to_string()));
     }
 
-    //generate JWT token with string ID
-    let token = generate_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // Generate JWT for authenticated user
+    let token = generate_jwt(user.id, user.role)
+        .map_err(|_| AppError::Server("Token generation failed".to_string()))?;
 
-    // return token as JSON
-    Ok(Json(json!({ "token" : token })))
+    // Return success response with token
+    Ok((
+        StatusCode::OK,
+        Json(LoginResponse {
+            message: "Logged in".to_string(),
+            token,
+        }),
+    ))
+}
 
+pub async fn profile_basic(
+    State(pool): State<SqlitePool>,
+    Extension(auth_user): Extension<Arc<AuthUser>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Fetch user email by ID
+    let user = sqlx::query!(
+        r#"
+        SELECT email
+        FROM users
+        WHERE id = ?
+        "#,
+        auth_user.id
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        // Edge case: User not found (inconsistent auth_user data)
+        AppError::Database(e.to_string())
+    })?;
+
+    // Return user profile
+    Ok((
+        StatusCode::OK,
+        Json(ProfileResponse {
+            email: user.email,
+            wallet_address: auth_user.wallet_address.clone(),
+            role: auth_user.role.clone(),
+            verified_wallet: auth_user.verified_wallet,
+        }),
+    ))
+}
+
+pub async fn profile_verified(
+    State(pool): State<SqlitePool>,
+    Extension(auth_user): Extension<Arc<AuthUser>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Fetch user email by ID
+    let user = sqlx::query!(
+        r#"
+        SELECT email
+        FROM users
+        WHERE id = ?
+        "#,
+        auth_user.id
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        // Edge case: User not found (inconsistent auth_user data)
+        AppError::Database(e.to_string())
+    })?;
+
+    // Restrict access to wallet_user or client roles
+    if auth_user.role != "wallet_user" && auth_user.role != "client" {
+        // Edge case: User attempts access with unauthorized role
+        return Err(AppError::Unauthorized("Wallet user or client role required".to_string()));
+    }
+
+    // Return verified user profile
+    Ok((
+        StatusCode::OK,
+        Json(ProfileResponse {
+            email: user.email,
+            wallet_address: auth_user.wallet_address.clone(),
+            role: auth_user.role.clone(),
+            verified_wallet: auth_user.verified_wallet,
+        }),
+    ))
+}
+
+// Helper function to check if wallet is verified
+async fn check_wallet_verified(pool: &SqlitePool, wallet_address: &str) -> Result<bool, AppError> {
+    // Query verified_wallet status for wallet_address
+    let user = sqlx::query!(
+        "SELECT verified_wallet FROM users WHERE wallet_address = ?",
+        wallet_address
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    // Return false if user not found, otherwise return verified_wallet status
+    Ok(user.map_or(false, |u| u.verified_wallet))
+}
+
+pub async fn request_nonce(
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<NonceRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    // Validate payload structure
+    payload.validate().map_err(AppError::Validation)?;
+
+    // Prevent nonce generation for verified wallets
+    if check_wallet_verified(&pool, &payload.wallet_address).await? {
+        // Edge case: Wallet already verified
+        return Err(AppError::BadRequest("Wallet already verified".to_string()));
+    }
+
+    // Generate nonce and timestamps
+    let nonce = generate_nonce();
+    let created_at = Utc::now().to_rfc3339();
+    let expires_at = Utc::now()
+        .checked_add_signed(Duration::minutes(15))
+        .expect("valid timestamp")
+        .to_rfc3339();
+
+    // Store nonce in database
+    sqlx::query!(
+        "INSERT OR REPLACE INTO nonces (wallet_address, nonce, created_at, expires_at) VALUES (?,?,?,?)",
+        payload.wallet_address,
+        nonce,
+        created_at,
+        expires_at
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        // Edge case: Database error (e.g., constraint violation)
+        AppError::Database(e.to_string())
+    })?;
+
+    // Return nonce
+    Ok((
+        StatusCode::OK,
+        Json(NonceResponse { nonce }),
+    ))
+}
+
+pub async fn verify(
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<VerifyRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    // Validate payload structure
+    payload.validate().map_err(AppError::Validation)?;
+
+    // Prevent verification for already verified wallets
+    if check_wallet_verified(&pool, &payload.wallet_address).await? {
+        // Edge case: Wallet already verified
+        return Err(AppError::BadRequest("Wallet already verified".to_string()));
+    }
+
+    // Fetch and validate nonce
+    let nonce_record = sqlx::query!(
+        "SELECT nonce, expires_at FROM nonces WHERE wallet_address = ? AND nonce = ?",
+        payload.wallet_address,
+        payload.nonce
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?
+    .ok_or(AppError::Unauthorized("Invalid or expired nonce".to_string()))?;
+
+    // Parse and check nonce expiration
+    let expires_at = chrono::DateTime::parse_from_rfc3339(&nonce_record.expires_at)
+        .map_err(|_| {
+            // Edge case: Invalid expires_at format in database
+            AppError::Server("Invalid expiration time".to_string())
+        })?;
+
+    if Utc::now() > expires_at.with_timezone(&Utc) {
+        // Edge case: Nonce has expired
+        return Err(AppError::Unauthorized("Nonce Expired".to_string()));
+    }
+
+    // Verify signature
+    let message = create_eip712_message(&payload.nonce, &payload.wallet_address);
+    if !verify_eip712_signature(&message, &payload.signature, &payload.wallet_address)? {
+        // Edge case: Invalid or malformed signature
+        return Err(AppError::Unauthorized("Invalid signature".to_string()));
+    }
+
+    // Fetch or create user
+    let user = sqlx::query!(
+        r#"
+        SELECT id AS "id!: i64", role
+        FROM users
+        WHERE wallet_address = ?
+        "#,
+        payload.wallet_address
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let (user_id, role) = match user {
+        Some(user) => {
+            // Update existing user
+            sqlx::query!(
+                "UPDATE users SET verified_wallet = ? WHERE id = ?",
+                true,
+                user.id
+            )
+            .execute(&pool)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+            (user.id, user.role)
+        }
+        None => {
+            // Auto-register user if not exists
+            let email = format!("{}@freelancia.wallet", payload.wallet_address);
+            let result = sqlx::query!(
+                "INSERT INTO users (email, wallet_address, role, verified_wallet) VALUES (?,?,?,?)",
+                email,
+                payload.wallet_address,
+                "wallet_user",
+                true
+            )
+            .execute(&pool)
+            .await
+            .map_err(|e| {
+                // Edge case: Database constraint violation (e.g., duplicate wallet_address)
+                AppError::Database(e.to_string())
+            })?;
+
+            (result.last_insert_rowid(), "freelancer".to_string())
+        }
+    };
+
+    // Delete used nonce
+    sqlx::query!(
+        "DELETE FROM nonces WHERE wallet_address = ? AND nonce = ?",
+        payload.wallet_address,
+        payload.nonce
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    // Generate JWT
+    let token = generate_jwt(user_id, role)
+        .map_err(|_| AppError::Server("Token generation failed".to_string()))?;
+
+    // Return success response
+    Ok((
+        StatusCode::OK,
+        Json(VerifyResponse {
+            message: "Wallet verified".to_string(),
+            token,
+        }),
+    ))
 }

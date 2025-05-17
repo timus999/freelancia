@@ -1,9 +1,9 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,
+    pub user_id: i64,
+    pub role: String, // "freelancer" or "client"
     pub exp: usize,
 }
-
 

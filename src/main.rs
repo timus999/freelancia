@@ -1,12 +1,7 @@
 use axum::{Router};
-use sqlx::SqlitePool;
-use freelancia_backend::routes;
+use freelancia_backend::{db, routes};
 use dotenvy::dotenv;
-use std::env;
 
-// mod routes;
-// mod handlers;
-// mod models;
 #[tokio::main]
 
 async fn main(){
@@ -15,21 +10,18 @@ async fn main(){
     dotenv().ok();
 
     //connect to db
-    let db_url = env::var("DATABASE_URL").expect("databaseurl must be set in .env"); // or "sqlite:///full/path/to/test.db"
-    let pool = match SqlitePool::connect(&db_url).await {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Failed to connect to DB: {e}");
-            return;
-        }
-    };
+    let pool = db::init_pool()
+        .await
+        .expect("Failed to connect to database");
     println!("connected to database");
     //Define the route
     // let app = routes::create_routes(); 
     let app = Router::new()
-                .merge(routes::create_routes())
-                .merge(routes::auth_routes(pool)); 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+                .nest("/api",routes::create_routes(pool.clone()))
+                .nest("/auth", routes::auth_routes(pool.clone()));
+                
+    
+    let listener= tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
 
     //set the address
 
