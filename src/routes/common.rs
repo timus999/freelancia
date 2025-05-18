@@ -7,6 +7,8 @@ pub fn protected_routes(pool: SqlitePool) -> Router {
     Router::new()
         .route("/signup", post(signup))
         .route("/login", post(login))
+        .route("/logout", post(logout)
+            .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware)))
         .route("/profile/basic", 
         get(profile_basic)
                         .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware)))

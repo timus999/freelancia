@@ -2,11 +2,13 @@ use axum::{Json, extract::State, http::StatusCode, response::IntoResponse, Exten
 use serde_json::json;
 use sqlx::SqlitePool;
 use validator::Validate;
-use crate::models::auth::*;
+use crate::models::{auth::*, jwt::*};
+use jsonwebtoken::{decode, DecodingKey, Validation, TokenData};
 use crate::utils::*;
 use crate::error::AppError;
 use std::sync::Arc;
 use chrono::{Duration, Utc};
+use crate::config::jwt_secret;
 
 pub async fn signup(
     State(pool): State<SqlitePool>,
@@ -122,6 +124,41 @@ pub async fn login(
             token,
         }),
     ))
+}
+
+pub async fn logout(
+    State(pool): State<SqlitePool>,
+    Extension(_auth_user): Extension<Arc<AuthUser>>,
+    Extension(token): Extension<String>, //raw jwt token from middleware
+) -> Result<impl IntoResponse, AppError> {
+    //Decode token to extract expiration time
+    let secret = jwt_secret();
+    let token_data: TokenData<Claims> = decode::<Claims>(
+        &token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::new(jsonwebtoken::Algorithm::HS256),
+    )
+    .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+
+    // Insert token into blacklisted_tokens
+    // Note: Blacklisting is required because we cannot modify the token's exp
+    // (which would create a new token) or force the client to stop using the original.
+    // Storing in blacklisted_tokens ensures the token is rejected until its exp.
+        sqlx::query!(
+        "INSERT INTO blacklisted_tokens (token, expires_at) VALUES (?, ?)",
+        token,
+        token_data.claims.exp
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    //return success response
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "message": "Logged out successfully"})),
+    ))
+    
 }
 
 pub async fn profile_basic(
