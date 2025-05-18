@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     posted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deadline TEXT NOT NULL,
     client_id INTEGER NOT NULL,
+    category TEXT NOT NULL,
     FOREIGN KEY(client_id) REFERENCES users(id)
 );
 
@@ -71,3 +72,36 @@ CREATE TABLE IF NOT EXISTS nonces (
     expires_at TEXT NOT NULL, -- ISO 8601
     PRIMARY KEY (wallet_address, nonce)
 );
+
+FTS5 virtual table to index title and description
+CREATE VIRTUAL TABLE jobs_fts USING fts5(
+    title,
+    description,
+    job_id UNINDEXED,
+    tokenize = 'porter unicode61'
+);
+
+CREATE TRIGGER jobs_insert AFTER INSERT ON jobs
+BEGIN
+    INSERT INTO jobs_fts (job_id, title, description)
+    VALUES (new.id, new.title, new.description);
+END;
+
+CREATE TRIGGER jobs_update AFTER UPDATE ON jobs
+BEGIN
+    UPDATE jobs_fts
+    SET title = new.title,
+        description = new.description
+    WHERE job_id = new.id;
+END;
+
+CREATE TRIGGER jobs_delete AFTER DELETE ON jobs
+BEGIN
+    DELETE FROM jobs_fts WHERE job_id = old.id;
+END;
+
+CREATE TABLE blacklisted_tokens (
+    token TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL
+);
+CREATE INDEX idx_blacklisted_tokens_expires_at ON blacklisted_tokens(expires_at);
