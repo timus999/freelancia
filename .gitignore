@@ -2,6 +2,5 @@ target
 test.db
 test-journal
 .env
-migrations
 .sqlx
 tests

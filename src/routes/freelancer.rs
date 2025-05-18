@@ -3,7 +3,7 @@ use sqlx::SqlitePool;
 
 // use crate::handlers::freelancer::submit_bid;
 use crate::middleware::auth::{freelancer_only, auth_middleware};
-use crate::handlers::job::view_jobs;
+use crate::handlers::job::{get_filtered_jobs};
 
 // pub fn router(pool: SqlitePool) -> Router {
 //     Router::new()
@@ -13,7 +13,9 @@ use crate::handlers::job::view_jobs;
 
 pub fn router(pool: SqlitePool) -> Router {
     Router::new()
-        .route("/jobs", get(view_jobs).route_layer(middleware::from_fn_with_state(pool.clone(), freelancer_only)))
+        // .route("/jobs", get(view_jobs))
+        .route("/jobs", get(get_filtered_jobs))
+        .route_layer(middleware::from_fn_with_state(pool.clone(), freelancer_only))
         .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware))
         .with_state(pool)
 }

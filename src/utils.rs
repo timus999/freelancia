@@ -24,7 +24,7 @@ pub fn generate_jwt(user_id: i64, role: String) -> Result<String, jsonwebtoken::
     let claims = Claims {
         user_id,
         role,
-        exp: (Utc::now() + Duration::hours(24)).timestamp() as usize,
+        exp: (Utc::now() + Duration::hours(24)).timestamp() as i64,
     };
 
     // Encode JWT using the secret key from environment variable
