@@ -118,7 +118,7 @@ Freelancia is a modern freelance marketplace platform. This is the backend API b
 
 ## 🔧 Build and Compile
 ```bash
-cargo run --bin freelancia backend
+cargo build
 ```
 
 ## 🔧 Run the Server
