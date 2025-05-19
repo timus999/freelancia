@@ -105,3 +105,16 @@ CREATE TABLE blacklisted_tokens (
     expires_at INTEGER NOT NULL
 );
 CREATE INDEX idx_blacklisted_tokens_expires_at ON blacklisted_tokens(expires_at);
+
+--Proposals table
+CREATE TABLE IF NOT EXISTS proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    freelancer_id INTEGER NOT NULL,
+    cover_letter TEXT NOT NULL,
+    bid_amount REAL NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('submitted', 'accepted', 'rejected')),
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE
+);
