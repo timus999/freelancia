@@ -1,11 +1,12 @@
 use ethers::{
     prelude::*,
-    utils::{hash_message, to_checksum},
+    utils::{to_checksum},
 };
 use std::str::FromStr;
 
 async fn generate_signature(message: &str, private_key: &str) -> Result<String, Box<dyn std::error::Error>> {
     let wallet = LocalWallet::from_str(private_key)?;
+    //may require to hash the message using hash_message()
     let signature = wallet.sign_message(message).await?;
     Ok(format!("0x{}", signature))
 }
