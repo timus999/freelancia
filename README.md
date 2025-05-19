@@ -90,10 +90,46 @@ Freelancia is a modern freelance marketplace platform. This is the backend API b
 
 > Stack: Rust, Axum, SQLx 0.7.x, SQLite FTS5, JWT, Postman
 
+### ✅ May 19, 2025 – Daily Update
 
+- Implemented full job proposal system:
+  - Created `proposals` table with fields:
+    - `job_id` (foreign key to `jobs`)
+    - `freelancer_id` (foreign key to `users`)
+    - `cover_letter`, `bid_amount`, `status`, `created_at`
+  - Used SQLx with SQLite for schema setup and migrations
+
+- Developed Proposal API Endpoints:
+  - `POST /api/proposals`: freelancers can submit proposals
+  - `GET /api/proposals/job/:job_id`: clients view proposals for their own jobs
+  - `PATCH /api/proposals/:id`: clients accept/reject proposals
+  - `GET /api/proposals/me`: freelancers view and filter their submitted proposals
+
+- Added role-based access control:
+  - Only authenticated freelancers can submit proposals
+  - Only job owners (clients) can view/modify their job’s proposals
+
+- Refactored and documented:
+  - Added detailed comments in proposal handlers for clarity
+  - Verified proposal logic and edge cases using Postman
+
+> **Stack**: Rust, Axum, SQLx 0.7.x, SQLite, JWT, Postman
+
+
+## 🔧 Build and Compile
+```bash
+cargo run --bin freelancia backend
+```
 
 ## 🔧 Run the Server
 
 ```bash
-cargo run
+cargo run --bin freelancia backend
+```
+
+## 🔧 Run the test
+
+```bash
+cargo test
+```
 
