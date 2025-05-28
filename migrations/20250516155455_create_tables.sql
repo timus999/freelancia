@@ -1,9 +1,5 @@
--- Add migration script here
--- Add migration script here
--- Add migration script here
--- migrations/20250516120000_create_jobs_bids_profiles.sql
 
--- Users (already exist, but included here for FK reference)
+--users
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
@@ -54,17 +50,19 @@ CREATE TABLE IF NOT EXISTS profiles (
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_id INTEGER NOT NULL,
-    reviewer_id INTEGER NOT NULL,
-    rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
-    review TEXT,
-    review_ipfs_hash TEXT NOT NULL,
-    FOREIGN KEY (job_id) REFERENCES jobs(id),
-    FOREIGN KEY (reviewer_id) REFERENCES users(id)
-);
 
+-- CREATE TABLE IF NOT EXISTS reviews (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     job_id INTEGER NOT NULL,
+--     reviewer_id INTEGER NOT NULL,
+--     rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+--     review TEXT,
+--     review_ipfs_hash TEXT NOT NULL,
+--     FOREIGN KEY (job_id) REFERENCES jobs(id),
+--     FOREIGN KEY (reviewer_id) REFERENCES users(id)
+-- );
+
+--nonces table
 CREATE TABLE IF NOT EXISTS nonces (
     wallet_address TEXT NOT NULL,
     nonce TEXT NOT NULL,
@@ -72,6 +70,7 @@ CREATE TABLE IF NOT EXISTS nonces (
     expires_at TEXT NOT NULL, -- ISO 8601
     PRIMARY KEY (wallet_address, nonce)
 );
+
 
 FTS5 virtual table to index title and description
 CREATE VIRTUAL TABLE jobs_fts USING fts5(
@@ -100,6 +99,7 @@ BEGIN
     DELETE FROM jobs_fts WHERE job_id = old.id;
 END;
 
+--blacklisted_token table
 CREATE TABLE blacklisted_tokens (
     token TEXT PRIMARY KEY,
     expires_at INTEGER NOT NULL

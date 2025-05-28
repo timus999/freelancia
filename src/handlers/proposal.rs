@@ -14,6 +14,7 @@ use crate::{
         proposal::{CreateProposal, ProposalResponse, ProposalStatus, UpdateProposal, ProposalFilter},
         auth::AuthUser,
     },
+    // blockchain::escrow::call_create_escrow,
 };
 
 //Create a new proposal
@@ -162,6 +163,28 @@ pub async fn update_proposal(
             "Proposal not found, not owned, or not in submitted status".to_string()
         )),
     };
+
+    // If accepted, create escrow on Solana
+    // if payload.status == ProposalStatus::Accepted {
+    //     // Fetch freelancer's wallet address
+    //     let freelancer_wallet = sqlx::query_scalar::<_, String>(
+    //         "SELECT wallet_address FROM users WHERE id = ?"
+    //     )
+    //     .bind(proposal.freelancer_id)
+    //     .fetch_one(&pool)
+    //     .await
+    //     .map_err(|e| AppError::Database(e.to_string()))?;
+
+        // Call create escrow
+    //     call_create_escrow(
+    //         proposal_id as u64,
+    //         proposal.job_id as u64, 
+    //         &freelancer_wallet, 
+    //         (proposal.bid_amount * 1_000_000_000.0) as u64, // Convert bid_amount to lamports (assuming bid_amount in SOL)
+    //         )
+    //         .await
+    //         .map_err(|e| AppError::Server(format!("Failed to create escrow: {}", e)))?;
+    // }
 
     //Return updated proposal
     Ok((

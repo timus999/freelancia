@@ -3,7 +3,11 @@ name = "freelancia_backend"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members =[ "programs/escrow/"]
+
 [dependencies]
+#escrow = { path = "/home/timus/Desktop/rust_programming/blockchain/freelancia_backend/programs/escrow" } # path to anchor program
 axum = { version = "0.7", features = ["tokio"]}
 tokio = { version = "1", features = ["full"]}
 serde = { version = "1.0", features = ["derive"]}
@@ -21,8 +25,28 @@ tower-http = { version = "0.6.0", features = ["cors"] }
 ethers = { version = "2.0.11", features = ["rustls"], default-features = false}
 rand = "0.8.5"
 hex = "0.4.3"
+anchor-client = "0.31.1"
+solana-sdk = "2.2.2"
+anchor-lang = "0.31.1"         # Core Anchor framework
+anchor-spl = "0.31.1"         # For token operations (future use)
+solana-program = "2.2.1"    # Solana base library
+thiserror = "1.0"             # Error handling
 
 
 [dev-dependencies]
-
 tower-http = { version = "0.5", features = ["fs"] }
+solana-program-test = "2.2.7"
+anchor-client = "0.31.1"
+
+
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+
+[profile.release]
+overflow-checks = true

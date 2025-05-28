@@ -1,0 +1,11 @@
+[toolchain]
+anchor_version = "0.31.1"
+solana_version = "2.1.22"
+
+
+[programs.localnet]
+escrow = "63GkjuQiomySLzktPFgnzKH843N5vvpSBWMoUQDhZr5p"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
