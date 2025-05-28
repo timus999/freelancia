@@ -3,4 +3,9 @@ test.db
 test-journal
 .env
 .sqlx
-tests
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+.yarn
