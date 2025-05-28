@@ -115,10 +115,35 @@ Freelancia is a modern freelance marketplace platform. This is the backend API b
 
 > **Stack**: Rust, Axum, SQLx 0.7.x, SQLite, JWT, Postman
 
+## 🔗 Smart Contract Integration (Anchor + Solana)
+
+We’ve integrated a basic [Anchor](https://book.anchor-lang.com/) smart contract as part of Freelancia’s decentralized escrow and job management system.
+
+### 🧱 Anchor Program Overview
+
+The initial Anchor program is deployed and tested locally. It will be responsible for:
+
+- Escrow contract logic (job payment locking)
+- Verifiable proposal acceptance between client and freelancer
+- Ensuring funds are released only upon agreement or milestone approval
+
+### 📦 Program Details
+
+- **Language**: Rust
+- **Framework**: Anchor
+- **Solana Cluster**: Localhost / Devnet
+- **Program Name**: `escrow`
+
+### ⚙️ How to Run the Program Locally
+
+```bash
+anchor build
+anchor test
+```
 
 ## 🔧 Build and Compile
 ```bash
-cargo run --bin freelancia backend
+cargo build
 ```
 
 ## 🔧 Run the Server

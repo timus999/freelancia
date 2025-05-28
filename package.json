@@ -1,0 +1,15 @@
+{
+    "type": "module",
+    "scripts": {
+        "test": "mocha --loader=ts-node/esm tests/*.js --timeout 10000"
+    },
+    "dependencies": {
+        "@coral-xyz/anchor": "^0.31.0",
+        "chai": "^4.3.8"
+    },
+    "devDependencies": {
+        "mocha": "^10.4.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.8.3"
+    }
+}

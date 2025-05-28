@@ -1,0 +1,21 @@
+[package]
+name = "escrow"               # Must match your program name
+version = "0.1.0"
+description = "Freelance escrow program"
+edition = "2021"
+
+[dependencies]
+anchor-lang = "0.31.1"         # Core Anchor framework
+thiserror = "1.0"             # Error handling
+
+[features]
+no-entrypoint = []            # Required for Anchor programs
+no-idl = []
+cpi = ["no-entrypoint"]
+no-log-ix-name = []
+default = []
+idl-build = ["anchor-lang/idl-build"]
+
+[lib]
+name = "escrow"
+crate-type = ["cdylib", "lib"] # Needed for BPF compilation
