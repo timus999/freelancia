@@ -17,19 +17,20 @@ pub async fn signup(
     // Validate the payload structure and constraints
     payload.validate().map_err(AppError::Validation)?;
 
+
     // Validate role against allowed values
-    let valid_roles = vec!["email_user", "wallet_user", "client", "freelancer"];
+    let valid_roles = vec!["client", "freelancer"];
     if !valid_roles.contains(&payload.role.as_str()) {
         // Edge case: Invalid role provided
         return Err(AppError::Validation(validator::ValidationErrors::new()));
     }
 
     // Ensure wallet_user or client roles provide wallet_address and signature
-    if (payload.role == "wallet_user" || payload.role == "client") &&
-        (payload.wallet_address.is_none() || payload.signature.is_none()) {
-        // Edge case: Missing wallet_address or signature for wallet-based roles
-        return Err(AppError::Validation(validator::ValidationErrors::new()));
-    }
+    // if (payload.role == "wallet_user" || payload.role == "client") &&
+    //     (payload.wallet_address.is_none() || payload.signature.is_none()) {
+    //     // Edge case: Missing wallet_address or signature for wallet-based roles
+    //     return Err(AppError::Validation(validator::ValidationErrors::new()));
+    // }
 
     // Ensure email_user provides a password
     if payload.role == "email_user" && payload.password.is_none() {
@@ -49,13 +50,14 @@ pub async fn signup(
 
     let hashed_password = hash_password(password)
         .map_err(|_| AppError::Server("Failed to hash password".to_string()))?;
+    let wallet_address = payload.wallet_address;
 
     // Insert user into database with verified_wallet set to false
     let result = sqlx::query!(
         "INSERT INTO users (email, password, wallet_address, role, verified_wallet) VALUES (?, ?, ?, ?, ?)",
         payload.email,
         hashed_password,
-        payload.wallet_address,
+        wallet_address,
         payload.role,
         false
     )
@@ -66,10 +68,14 @@ pub async fn signup(
         AppError::Database(e.to_string())
     })?;
 
+     // Generate JWT for authenticated user
+     let token = generate_jwt(result.last_insert_rowid(), payload.role)
+     .map_err(|_| AppError::Server("Token generation failed".to_string()))?;
+
     // Return success response with user_id
     Ok((
         StatusCode::CREATED,
-        Json(json!({ "message": "User signed up", "user_id": result.last_insert_rowid() })),
+        Json(json!({ "message": "User signed up", "user_id": result.last_insert_rowid(), "token": token })),
     ))
 }
 
@@ -401,4 +407,13 @@ pub async fn verify(
             token,
         }),
     ))
+}
+
+
+pub async fn cleanup_blacklisted_tokens(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    let now = chrono::Utc::now().timestamp();
+    sqlx::query!("DELETE FROM blacklisted_tokens WHERE expires_at < ?", now)
+        .execute(pool)
+        .await?;
+    Ok(())
 }

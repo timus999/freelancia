@@ -2,6 +2,15 @@ use axum::{Router, routing::{post, get}, middleware};
 use crate::handlers::{auth::*};
 use sqlx::SqlitePool;
 use crate::middleware::auth::{auth_middleware, wallet_verified_only};
+use crate::handlers::job::{get_filtered_jobs, get_categories};
+
+
+pub fn public_routes(pool: SqlitePool) -> Router {
+    Router::new()
+        .route("/jobs", get(get_filtered_jobs))
+        .route("/jobs/categories", get(get_categories))
+        .with_state(pool)
+}
 
 pub fn protected_routes(pool: SqlitePool) -> Router {
     Router::new()
