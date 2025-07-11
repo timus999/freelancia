@@ -7,7 +7,7 @@ pub struct SignupRequest {
     pub email: String,
     #[validate(length(min = 8, message = "Password must be at least 8 characters long"))]
     pub password: Option<String>, // Optional for Web3 users
-    #[validate(length(min = 1, message = "Wallet address is required"))]
+    // #[validate(length(min = 1, message = "Wallet address is required"))]
     pub wallet_address: Option<String>,
     #[validate(length(min = 1, message = "Signature is required"))]
     pub signature: Option<String>, // Required if no password

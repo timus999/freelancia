@@ -1,14 +1,21 @@
 {
     "type": "module",
     "scripts": {
-        "test": "mocha --loader=ts-node/esm tests/*.js --timeout 10000"
+        "test": "node --loader ts-node/esm node_modules/.bin/mocha -t 1000000 'tests/**/*.ts'",
+        "build:anchor": "cd programs/my_anchor_program && anchor build",
+        "start:axum": "cargo run"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.31.0",
-        "chai": "^4.3.8"
+        "@coral-xyz/anchor": "^0.31.0"
     },
     "devDependencies": {
+        "@types/chai": "^5.2.2",
+        "@types/jest": "^30.0.0",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "^24.0.10",
+        "chai": "^5.2.0",
         "mocha": "^10.4.0",
+        "ts-mocha": "^11.1.0",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.3"
     }

@@ -8,12 +8,14 @@ use crate::handlers::{print_msg, check_health, hello};
 pub mod common;
 pub mod freelancer;
 pub mod client;
+pub mod blockchain;
 
 pub fn create_routes(pool: SqlitePool) -> Router{
     Router::new()
         .route("/", get(print_msg))
         .route("/api/v1/ping", get(check_health))
         .route("/api/v1/hello", get(hello))
+        .merge(common::public_routes(pool.clone()))
         .merge(client::router(pool.clone()))
         .merge(freelancer::router(pool))
 }
