@@ -127,6 +127,20 @@ The initial Anchor program is deployed and tested locally. It will be responsibl
 - Verifiable proposal acceptance between client and freelancer
 - Ensuring funds are released only upon agreement or milestone approval
 
+# 🔐 Escrow Smart Contract (Anchor Program)
+
+This Anchor-based Solana smart contract implements a **secure and trustless escrow system** for native SOL transfers between a _client (maker)_ and a _freelancer (taker)_, with optional arbitration and automatic resolution.
+
+---
+
+## 📦 Overview
+
+The escrow contract facilitates a decentralized workflow with the following phases:
+
+1. **Escrow Creation** – funds are locked securely in a program-controlled vault.
+2. **Work Submission** – the taker submits proof of work via content hashing.
+3. **Work Approval** – the maker releases funds after reviewing deliverables.
+
 ### 📦 Program Details
 
 - **Language**: Rust
