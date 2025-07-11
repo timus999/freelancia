@@ -294,3 +294,26 @@ pub async fn get_filtered_jobs(
     let jobs_response = JobsResponse { jobs };
     Ok((StatusCode::OK, Json(jobs_response)))
 }
+
+
+
+pub async fn get_categories(State(_pool): State<SqlitePool>) -> Result<(StatusCode, Json<Categories>), AppError> {
+    // Mock categories (replace with DB query if needed)
+    let categories = vec![
+        "Web Development",
+        "Graphic Design",
+        "Writing",
+        "Digital Marketing",
+        "Video Editing",
+        "Music Production",
+    ];
+
+    let categories = Categories {
+        categories: categories.into_iter().map(String::from).collect(),
+    };
+
+    Ok((
+        StatusCode::OK,
+        Json(categories),
+    ))
+}

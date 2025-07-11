@@ -89,3 +89,8 @@ pub struct JobFilterQuery {
 
 }
 
+#[derive(Serialize)]
+pub struct Categories{
+    pub categories: Vec<String>,
+}
+
