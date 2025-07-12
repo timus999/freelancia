@@ -136,10 +136,175 @@ This Anchor-based Solana smart contract implements a **secure and trustless escr
 ## 📦 Overview
 
 The escrow contract facilitates a decentralized workflow with the following phases:
+### 1. 🚀 Escrow Creation (`create_escrow`)
 
-1. **Escrow Creation** – funds are locked securely in a program-controlled vault.
-2. **Work Submission** – the taker submits proof of work via content hashing.
-3. **Work Approval** – the maker releases funds after reviewing deliverables.
+**Role:** Maker (client)  
+**Purpose:** Initialize a new escrow by locking funds securely into a program-controlled vault.
+
+#### ✅ Preconditions:
+- Deadline and auto-release timestamps must be valid and increasing
+- Maker must sign the transaction
+- Vault PDA is derived and funded accordingly
+
+#### 🔄 State Changes:
+- Creates and initializes the escrow account with all metadata
+- Creates a vault PDA account holding the locked funds (rent-exempt)
+- Funds equal to `amount` + rent are transferred into the vault
+- Escrow status set to `Active`
+
+#### 🧾 Arguments:
+- `escrow_id: u64` — Unique identifier for the escrow
+- `amount: u64` — Total funds locked (in lamports)
+- `deadline: i64` — Timestamp by which work must be completed
+- `auto_release_at: i64` — Timestamp after which funds auto-release to taker if no dispute
+- `spec_hash: [u8; 32]` — Hash of the job specification or contract details
+- `arbiter: Option<Pubkey>` — Optional arbiter public key for dispute resolution
+
+#### 📦 Accounts:
+| Name         | Type        | Required | Description                       |
+|--------------|-------------|----------|----------------------------------|
+| maker        | `Signer`    | ✅       | Client funding and creating escrow |
+| taker        | `AccountInfo` | ✅     | Freelancer assigned to the escrow |
+| escrow       | `Account`   | ✅       | Newly created escrow account       |
+| vault        | `AccountInfo` | ✅     | PDA account holding locked funds   |
+| system_program | `Program`  | ✅       | System program for account creation and transfers |
+
+---
+
+### 2. 📤 Work Submission (`submit_work`)
+
+**Role:** Taker (freelancer)  
+**Purpose:** Submit proof of completed work by recording a deliverable hash on-chain.
+
+#### ✅ Preconditions:
+- Escrow must be in `Active` state
+- Only the `taker` can submit work
+- Deliverable hash is a valid 32-byte hash of the submitted work
+
+#### 🔄 State Changes:
+- Updates escrow status to `Submitted`
+- Stores the `deliverable_hash` on-chain for maker's review
+
+#### 🧾 Arguments:
+- `deliverable_hash: [u8; 32]` — Hash representing the completed deliverable content
+
+#### 📦 Accounts:
+| Name   | Type        | Required | Description                      |
+|--------|-------------|----------|---------------------------------|
+| taker  | `Signer`    | ✅       | Freelancer submitting work       |
+| escrow | `Account`   | ✅       | Escrow account being updated     |
+
+---
+
+### 3. ✅ Work Approval (`approve_work`)
+
+**Role:** Maker (client)  
+**Purpose:** Release escrowed funds to the taker upon approval of submitted work.
+
+#### ✅ Preconditions:
+- Escrow must be in `Submitted` state
+- Only the `maker` can approve
+- Sufficient funds available in the vault
+
+#### 🔄 State Changes:
+- Transfers full remaining funds from vault to taker
+- Updates escrow status to `Completed`
+- Records completion timestamp
+
+#### 🧾 Arguments: _None_
+
+#### 📦 Accounts:
+| Name           | Type         | Required | Description                     |
+|----------------|--------------|----------|---------------------------------|
+| maker          | `Signer`     | ✅       | Client approving and releasing funds |
+| taker          | `AccountInfo`| ✅       | Freelancer receiving funds       |
+| escrow         | `Account`    | ✅       | Escrow account to update         |
+| vault          | `AccountInfo`| ✅       | PDA vault holding the funds      |
+| system_program | `Program`    | ✅       | System program for transfers     |
+
+---
+
+### 🔁 4. `request_revision`
+
+**Role:** Maker (client)  
+**Purpose:** Reject the submitted deliverables and revert the escrow back to an active state for revision.
+
+#### ✅ Preconditions:
+- Escrow must be in `Submitted` state
+- Only the `maker` (client) can request a revision
+
+#### 🔄 State Changes:
+- Escrow status changes back to `Active`
+- Increments `revision_requests` by 1
+
+#### 🧾 Arguments: _None_
+
+#### 📦 Accounts:
+| Name   | Type         | Required | Description                      |
+|--------|--------------|----------|----------------------------------|
+| maker  | `Signer`     | ✅       | Client requesting revision       |
+| escrow | `Account`    | ✅       | Escrow account to modify         |
+
+---
+
+### ⚖️ 5. `raise_dispute`
+
+**Role:** Maker (client) or Taker (freelancer)  
+**Purpose:** Escalate the escrow to a dispute state by providing hashed evidence (e.g., an IPFS hash of a document).
+
+#### ✅ Preconditions:
+- Escrow must be in `Active` or `Submitted` state
+- Caller must be either `maker` or `taker`
+
+#### 🔄 State Changes:
+- Escrow status becomes `Disputed`
+- `dispute_evidence_uri_hash` is recorded
+
+#### 🧾 Arguments:
+- `evidence_uri_hash: [u8; 32]` — A 32-byte hash (typically SHA-256) representing off-chain dispute evidence
+
+#### 📦 Accounts:
+| Name    | Type      | Required | Description                          |
+|---------|-----------|----------|--------------------------------------|
+| caller  | `Signer`  | ✅       | Must be either the maker or taker    |
+| escrow  | `Account` | ✅       | Escrow account to dispute            |
+
+---
+
+### 👩‍⚖️ 6. `arbiter_resolve`
+
+**Role:** Arbiter  
+**Purpose:** Allows the assigned arbiter to resolve a dispute by splitting remaining funds between the taker (freelancer) and maker (client).
+
+#### ✅ Preconditions:
+- Escrow must be in `Disputed` state
+- Arbiter must match the one specified during `create_escrow`
+- Combined amount must not exceed vault balance
+- At least one of the amounts must be > 0
+
+#### 🔄 State Changes:
+- Transfers specified lamports from the vault to each party
+- Updates `amount_released` and `amount_refunded`
+- Escrow status becomes `Completed`
+- Sets `completed_at` timestamp
+
+#### 🧾 Arguments:
+- `taker_amount: u64` — Amount (in lamports) to release to taker
+- `maker_amount: u64` — Amount (in lamports) to refund to maker
+
+#### 📦 Accounts:
+| Name            | Type       | Required | Description                                |
+|-----------------|------------|----------|--------------------------------------------|
+| arbiter         | `Signer`   | ✅       | Arbiter assigned in the escrow             |
+| maker           | `AccountInfo` | ✅   | Recipient of refunded amount (if any)      |
+| taker           | `AccountInfo` | ✅   | Recipient of released amount (if any)      |
+| escrow          | `Account`  | ✅       | Escrow to resolve                          |
+| vault           | `AccountInfo` | ✅   | PDA vault holding SOL                      |
+| system_program  | `Program`  | ✅       | System Program (for transfers)             |
+
+---
+
+
 
 ### 📦 Program Details
 
