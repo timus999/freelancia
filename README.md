@@ -304,6 +304,87 @@ The escrow contract facilitates a decentralized workflow with the following phas
 
 ---
 
+---
+
+### ❌ 7. `cancel_before_start`
+
+**Role:** Maker (client)  
+**Purpose:** Cancel the escrow before the taker has submitted any work, and refund all locked funds back to the maker.
+
+#### ✅ Preconditions:
+- Escrow must be in `Active` state
+- `amount_released` must be 0
+- Caller must be the `maker`
+- Vault must hold funds
+
+#### 🔄 State Changes:
+- Transfers all locked funds from vault back to the maker
+- Escrow status is set to `Cancelled`
+- Updates `amount_refunded`
+
+#### 🧾 Arguments: _None_
+
+#### 📦 Accounts:
+| Name            | Type          | Required | Description                             |
+|-----------------|---------------|----------|-----------------------------------------|
+| maker           | `Signer`      | ✅       | Creator of the escrow                   |
+| escrow          | `Account`     | ✅       | The escrow account to cancel            |
+| vault           | `AccountInfo` | ✅       | PDA vault holding locked funds          |
+| system_program  | `Program`     | ✅       | System program to perform transfers     |
+
+---
+
+### ⏱️ 8. `claim_timeout`
+
+**Role:** Conditional – Maker or Taker  
+**Purpose:** Allows either party to claim funds if the other fails to act within allowed timeframes.
+
+---
+
+#### 🧭 Scenario A: Maker Claims Refund (No Work Submitted)
+
+- **Condition**: `escrow.status == Active && now > deadline`
+- **Caller**: Must be `maker`
+- **Effect**:
+  - Vault funds are refunded to maker
+  - `status → Cancelled`
+
+---
+
+#### 🧭 Scenario B: Taker Claims Payment (Work Submitted, Maker Silent)
+
+- **Condition**: `escrow.status == Submitted && now > auto_release_at`
+- **Caller**: Must be `taker`
+- **Effect**:
+  - Vault funds are released to taker
+  - `status → Completed`
+  - `completed_at` is set
+
+---
+
+#### ✅ Preconditions:
+- Escrow must be in valid state (`Active` or `Submitted`)
+- Timestamp conditions must be met (deadline or auto_release_at)
+- Caller must match the required role (`maker` or `taker`)
+- Vault must contain funds
+
+#### 🔄 State Changes:
+- Transfers full unreleased/refundable amount from vault
+- Updates either `amount_refunded` or `amount_released`
+- Sets status to `Cancelled` or `Completed`
+
+#### 🧾 Arguments: _None_
+
+#### 📦 Accounts:
+| Name            | Type          | Required | Description                                      |
+|-----------------|---------------|----------|--------------------------------------------------|
+| claimant        | `Signer`      | ✅       | Either the `maker` or `taker`                    |
+| escrow          | `Account`     | ✅       | Escrow being resolved                            |
+| vault           | `AccountInfo` | ✅       | PDA vault containing locked funds                |
+| system_program  | `Program`     | ✅       | System program to transfer SOL from the vault    |
+
+---
+
 
 
 ### 📦 Program Details

@@ -2053,7 +2053,7 @@ name = "escrow"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "bytemuck",
+ "anchor-spl",
 ]
 
 [[package]]
