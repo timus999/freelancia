@@ -1,11 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
-use anchor_lang::solana_program::clock;
+use anchor_lang::solana_program::sysvar::clock::Clock; 
 
 
 
-
-declare_id!("2emdThfEdhbHmHZu3GCfsdT3dQicx1JELXxdFHpXu1Jk");
+declare_id!("FrSh6N1nUpvrRowi85uYHC8XZNMeuUZuBV1nyXTGaKgD");
 
 #[program]
 pub mod escrow {
@@ -34,7 +33,7 @@ pub mod escrow {
         escrow.maker = ctx.accounts.maker.key();
         escrow.taker = ctx.accounts.taker.key();
         escrow.amount_total = amount;
-        escrow.created_at = clock::Clock::get()?.unix_timestamp;
+        escrow.created_at = Clock::get()?.unix_timestamp;
         escrow.deadline = deadline;
         escrow.auto_release_at = auto_release_at;
         escrow.status = EscrowStatus::Active as u8;
@@ -303,6 +302,116 @@ pub fn arbiter_resolve(
     Ok(())
 }
 
+   pub fn cancel_before_start(ctx: Context<CancelBeforeStart>) -> Result<()> {
+        let escrow = &mut ctx.accounts.escrow;
+        
+        require!(escrow.status == EscrowStatus::Active as u8, EscrowError::InvalidState);
+        require!(*ctx.accounts.maker.key == escrow.maker, EscrowError::Unauthorized);
+        require!(escrow.amount_released == 0, EscrowError::FundsAlreadyReleased);
+        
+        let amount = escrow.amount_total - escrow.amount_refunded;
+        require!(amount > 0, EscrowError::NoFundsAvailable);
+
+
+          // Prepare seeds for vault PDA signing
+    let seeds = &[
+        b"vault",
+        escrow.maker.as_ref(),
+        &escrow.escrow_id.to_le_bytes(),
+        &[escrow.vault_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+        
+          system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.vault.to_account_info(),
+                    to: ctx.accounts.maker.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            amount,
+        )?;
+        
+        escrow.amount_refunded += amount;
+        escrow.status = EscrowStatus::Cancelled as u8;
+        
+        Ok(())
+    }
+
+
+    pub fn claim_timeout(ctx: Context<ClaimTimeout>) -> Result<()> {
+        let escrow = &mut ctx.accounts.escrow;
+        let clock = Clock::get()?;
+        let current_time = clock.unix_timestamp;
+
+                  // Prepare seeds for vault PDA signing
+    let seeds = &[
+        b"vault",
+        escrow.maker.as_ref(),
+        &escrow.escrow_id.to_le_bytes(),
+        &[escrow.vault_bump],
+    ];
+          let signer_seeds = &[&seeds[..]];
+        match escrow.status {
+            s if s == EscrowStatus::Active as u8 && current_time > escrow.deadline => {
+                require!(
+                    *ctx.accounts.claimant.key == escrow.maker,
+                    EscrowError::Unauthorized
+                );
+                
+                let amount = escrow.amount_total - escrow.amount_refunded;
+                require!(amount > 0, EscrowError::NoFundsAvailable);
+                
+            system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.vault.to_account_info(),
+                    to: ctx.accounts.claimant.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            amount,
+        )?;
+                
+                escrow.amount_refunded += amount;
+                escrow.status = EscrowStatus::Cancelled as u8;
+                escrow.completed_at = current_time;
+
+            }
+            s if s == EscrowStatus::Submitted as u8 && current_time > escrow.auto_release_at => {
+                require!(
+                    *ctx.accounts.claimant.key == escrow.taker,
+                    EscrowError::Unauthorized
+                );
+                
+                let amount = escrow.amount_total - escrow.amount_released;
+                require!(amount > 0, EscrowError::NoFundsAvailable);
+                
+                 system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.vault.to_account_info(),
+                    to: ctx.accounts.claimant.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            amount,
+        )?;
+                
+                escrow.amount_released += amount;
+                escrow.status = EscrowStatus::Completed as u8;
+                escrow.completed_at = current_time;
+            }
+            _ => return Err(EscrowError::ClaimNotAvailable.into()),
+        }
+        
+        Ok(())
+    }
+
 
 }
 
@@ -466,6 +575,40 @@ pub struct ArbiterResolve<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct CancelBeforeStart<'info> {
+    #[account(mut)]
+    pub maker: Signer<'info>,
+    #[account(mut)]
+    pub escrow: Account<'info, Escrow>,
+
+        /// CHECK: Vault holding funds, must match seeds
+    #[account(
+        mut,
+        seeds = [b"vault", escrow.maker.as_ref(), &escrow.escrow_id.to_le_bytes()],
+        bump = escrow.vault_bump
+    )]
+    pub vault: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimTimeout<'info> {
+    #[account(mut)]
+    pub claimant: Signer<'info>,
+    #[account(mut)]
+    pub escrow: Account<'info, Escrow>,
+          /// CHECK: Vault holding funds, must match seeds
+    #[account(
+        mut,
+        seeds = [b"vault", escrow.maker.as_ref(), &escrow.escrow_id.to_le_bytes()],
+        bump = escrow.vault_bump
+    )]
+    pub vault: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+
 
 // Escrow Status Enum
 #[repr(u8)]
@@ -504,3 +647,4 @@ pub enum EscrowError {
     #[msg("Arithmetic overflow")]
     Overflow,
 }
+
