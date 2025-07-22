@@ -1,15 +1,17 @@
-use axum::{Router};
-use freelancia_backend::{db, routes};
+use axum::Router;
 use dotenvy::dotenv;
-use tower_http::cors::{CorsLayer};
-use http::{Method, header::{HeaderValue, CONTENT_TYPE, AUTHORIZATION}};
-use tokio::time::{interval, Duration};
 use freelancia_backend::handlers::auth::cleanup_blacklisted_tokens;
+use freelancia_backend::{db, routes};
+use http::{
+    header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE},
+    Method,
+};
+use tokio::time::{interval, Duration};
+use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 
-async fn main(){
-
+async fn main() {
     //load from .env
     dotenv().ok();
 
@@ -37,20 +39,19 @@ async fn main(){
         .allow_methods([Method::GET, Method::POST, Method::PATCH])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
     //Define the route
-    // let app = routes::create_routes(); 
+    // let app = routes::create_routes();
     let app = Router::new()
-                .nest("/api",routes::create_routes(pool.clone()))
-                .nest("/api", routes::auth_routes(pool.clone()))
-                .nest("/api/v1/escrow", routes::blockchain::on_chain_routes(pool.clone()))
-                .layer(cors);
-                
-    
-    let listener= tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+        .nest("/api", routes::create_routes(pool.clone()))
+        .nest("/api", routes::auth_routes(pool.clone()))
+        .layer(cors);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .unwrap();
 
     //set the address
 
-    //start the server 
-    axum::serve(listener, app)
-        .await
-        .unwrap();
+    //start the server
+    axum::serve(listener, app).await.unwrap();
 }
+

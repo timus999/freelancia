@@ -22,6 +22,7 @@ pub fn create_routes(pool: SqlitePool) -> Router{
 
 pub fn auth_routes(pool:SqlitePool) -> Router{
     Router::new()
-        .merge(common::protected_routes(pool))
+        .merge(common::protected_routes(pool.clone()))
+        .merge(common::auth_routes(pool))
 }
 
