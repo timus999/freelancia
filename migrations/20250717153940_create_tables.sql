@@ -1,11 +1,13 @@
+-- Add migration script here
 
 --users
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
+    email TEXT UNIQUE,
     password TEXT, -- Hashed, nullable for Web3 users
     wallet_address TEXT UNIQUE,
-    role TEXT NOT NULL,
+    role TEXT NOT NULL CHECK ( role IN ('freelancer', 'client')),
+    wallet_user BOOLEAN NOT NULL DEFAULT FALSE,
     verified_wallet BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -23,33 +25,36 @@ CREATE TABLE IF NOT EXISTS jobs (
     deadline TEXT NOT NULL,
     client_id INTEGER NOT NULL,
     category TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('open','closed','submitted', 'accepted', 'rejected', 'completed')),
     FOREIGN KEY(client_id) REFERENCES users(id)
 );
 
 -- Bids
-CREATE TABLE IF NOT EXISTS bids (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_id INTEGER NOT NULL,
-    freelancer_id TEXT NOT NULL,
-    timeline TEXT NOT NULL,
-    budget INTEGER NOT NULL,
-    message TEXT NOT NULL,
-    FOREIGN KEY(job_id) REFERENCES jobs(id),
-    FOREIGN KEY(freelancer_id) REFERENCES users(id)
-);
+-- CREATE TABLE IF NOT EXISTS bids (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     job_id INTEGER NOT NULL,
+--     freelancer_id TEXT NOT NULL,
+--     timeline TEXT NOT NULL,
+--     budget INTEGER NOT NULL,
+--     message TEXT NOT NULL,
+--     FOREIGN KEY(job_id) REFERENCES jobs(id),
+--     FOREIGN KEY(freelancer_id) REFERENCES users(id)
+-- );
 
 -- Profiles
 CREATE TABLE IF NOT EXISTS profiles (
     user_id TEXT PRIMARY KEY,
-    username TEXT,
+    username TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('freelancer', 'client')),
     bio TEXT,
-    skills TEXT NOT NULL,
+    skills TEXT, -- comma-separated
     certifications TEXT,
     work_history TEXT,
-    profile_ipfs_hash TEXT NOT NULL,
+    profile_ipfs_hash TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
-
 
 -- CREATE TABLE IF NOT EXISTS reviews (
 --     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,7 +77,7 @@ CREATE TABLE IF NOT EXISTS nonces (
 );
 
 
-FTS5 virtual table to index title and description
+-- FTS5 virtual table to index title and description
 CREATE VIRTUAL TABLE jobs_fts USING fts5(
     title,
     description,
@@ -117,4 +122,49 @@ CREATE TABLE IF NOT EXISTS proposals (
     created_at INTEGER NOT NULL,
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
     FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS job_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    job_id INTEGER NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    approved BOOLEAN DEFAULT 0,
+    approved_at TEXT,
+    freelancer_wallet TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    UNIQUE(user_id, job_id) -- A user can only apply once to a job
+);
+
+CREATE TABLE IF NOT EXISTS saved_jobs (
+    user_id INTEGER NOT NULL,
+    job_id INTEGER NOT NULL,
+    saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, job_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,                 -- the recipient (job creator)
+    message TEXT NOT NULL,
+    read BOOLEAN NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    type TEXT DEFAULT 'generic',
+    job_id INTEGER,
+    actor_id INTEGER,
+    escrow_pda TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE job_user_interactions (
+    user_id     INTEGER NOT NULL,
+    job_id      INTEGER NOT NULL,
+    applied     BOOLEAN DEFAULT FALSE,
+    saved       BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (user_id, job_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (job_id)  REFERENCES jobs(id)
 );

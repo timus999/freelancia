@@ -10,6 +10,7 @@ pub mod freelancer;
 pub mod job;
 pub mod proposal;
 pub mod escrow;
+pub mod profile;
 pub async fn check_health() -> impl IntoResponse {
     Json(json!({"status" : "ok"}))
 }

@@ -1,11 +1,13 @@
-use bcrypt::{hash, verify, DEFAULT_COST};
-use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Header, EncodingKey};
-use std::env;
-use ethers::types::{Address, Signature};
-use ethers::utils::{to_checksum, hash_message};
-use crate::models::jwt::Claims;
 use crate::error::AppError;
+use crate::models::jwt::Claims;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use bs58;
+use chrono::{Duration, Utc};
+use ed25519_dalek::{VerifyingKey, Signature};
+use jsonwebtoken::{encode, EncodingKey, Header};
+use std::env;
+use std::convert::TryInto;
+
 
 pub fn hash_password(password: &String) -> Result<String, bcrypt::BcryptError> {
     // Hash the provided password using bcrypt with default cost factor
@@ -52,63 +54,58 @@ pub fn generate_nonce() -> String {
     // Edge case: Random number generator failure (highly unlikely)
 }
 
-pub fn create_eip712_message(nonce: &str, wallet_address: &str) -> String {
-    // Format an EIP-712 compliant message for wallet authentication
+pub fn create_solana_sign_message(nonce: &str, wallet_address: &str) -> String {
     format!(
-        "Welcome to Freelancia!\n\nPlease sign this message to authenticate your wallet.\n\nWallet: {}\nNonce: {}",
+        "Welcome to Freelancia!\n\nWallet: {}\nNonce: {}\n\nSign this message to authenticate.",
         wallet_address, nonce
     )
-    // Edge case: None, as this is a simple string format
 }
 
-pub fn verify_eip712_signature(
+pub fn verify_solana_signature(
     message: &str,
-    signature: &str,
-    wallet_address: &str,
+    signature_base58: &str,
+    wallet_address_base58: &str,
 ) -> Result<bool, AppError> {
-    // Decode the signature from hex, removing "0x" prefix
-    let signature = hex::decode(signature.trim_start_matches("0x"))
-        .map_err(|e| {
-            // Edge case: Invalid hex string or malformed signature
-            AppError::Server(format!("Invalid Signature format: {}", e))
-        })?;
+  // Trim inputs to prevent whitespace issues
+    let signature_base58 = signature_base58.trim();
+    let wallet_address_base58 = wallet_address_base58.trim();
 
-    // Parse the signature bytes into an ethers Signature object
-    let signature = Signature::try_from(signature.as_slice())
-        .map_err(|e| {
-            // Edge case: Signature bytes are invalid (e.g., wrong length)
-            AppError::Server(format!("Invalid Signature: {}", e))
-        })?;
+    // Decode public key
+    let pubkey_bytes = bs58::decode(wallet_address_base58)
+        .into_vec()
+        .map_err(|e| AppError::Unauthorized(format!("Invalid wallet address: {}", e)))?;
 
-    // Hash the message using EIP-191 (Ethereum signed message standard)
-    let msg_hash = hash_message(message);
+    // Convert to fixed-size array
+    let pubkey_arr: [u8; 32] = pubkey_bytes
+        .try_into()
+        .map_err(|_| AppError::Unauthorized("Invalid public key length".into()))?;
 
-    // Recover the address that signed the hashed message
-    let recovered = signature
-        .recover(msg_hash)
-        .map_err(|e| {
-            // Edge case: Signature recovery failure (e.g., invalid v value)
-            AppError::Server(format!("Signature recovery failed: {}", e))
-        })?;
+    let public_key = VerifyingKey::from_bytes(&pubkey_arr)
+        .map_err(|e| AppError::Unauthorized(format!("Invalid public key: {}", e)))?;
 
-    // Parse the expected wallet address
-    let expected_address: Address = wallet_address
-        .parse()
-        .map_err(|e| {
-            // Edge case: Invalid wallet address format (e.g., not a valid hex address)
-            AppError::Server(format!("Invalid wallet address: {}", e))
-        })?;
+    // Decode signature
+    let signature_bytes = bs58::decode(signature_base58)
+        .into_vec()
+        .map_err(|e| AppError::Unauthorized(format!("Invalid signature format: {}", e)))?;
 
-    // Compare recovered and expected addresses (case-insensitive)
-    let is_valid = to_checksum(&recovered, None) == to_checksum(&expected_address, None);
-    if !is_valid {
-        // Log verification failure for debugging
-        eprintln!(
-            "Verification failed: recovered = {}, expected = {}",
-            to_checksum(&recovered, None),
-            to_checksum(&expected_address, None)
-        );
-    }
-    // Return true if addresses match, false otherwise
-    Ok(recovered == expected_address)
+    // Convert to fixed-size array
+    let signature_arr: [u8; 64] = signature_bytes
+        .try_into()
+        .map_err(|_| AppError::Unauthorized("Invalid signature length".into()))?;
+
+    let signature = Signature::from_bytes(&signature_arr);
+
+    // Reconstruct signed message
+    let formatted_message = format!(
+        "\x18Solana Signed Message:\n{}{}",
+        message.chars().count(),  // Character count
+        message
+    );
+
+    // Verify signature
+    public_key
+        .verify_strict(formatted_message.as_bytes(), &signature)
+        .map(|_| true)
+        .map_err(|e| AppError::Unauthorized(format!("Verification failed: {}", e)))
 }
+

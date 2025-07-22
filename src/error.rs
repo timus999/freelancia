@@ -13,6 +13,8 @@ pub enum AppError {
     Unauthorized(String),
     Server(String),
     BadRequest(String),
+    NotFound(String),
+    Conflict(String),
 }
 
 impl IntoResponse for AppError {
@@ -38,7 +40,17 @@ impl IntoResponse for AppError {
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": "BadRequest", "message": msg })),
             ),
+                AppError::NotFound(msg) => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"message": msg })),
+            ),
+
+             AppError::Conflict(msg) => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"message": msg })),
+            ),
         };
+         
 
         (status, body).into_response()
     }
