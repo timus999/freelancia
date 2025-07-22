@@ -1,9 +1,17 @@
-use axum::{Router, routing::{get, post}, middleware};
+use axum::{
+    middleware,
+    routing::{get, post},
+    Router,
+};
 use sqlx::SqlitePool;
 
 // use crate::handlers::freelancer::submit_bid;
-use crate::middleware::auth::{freelancer_only, auth_middleware};
-use crate::handlers::{proposal::{create_proposal, get_my_proposals}};
+use crate::handlers::{
+    freelancer::*,
+    job::apply_for_job,
+    proposal::{create_proposal, get_my_proposals},
+};
+use crate::middleware::auth::{auth_middleware, freelancer_only};
 
 // pub fn router(pool: SqlitePool) -> Router {
 //     Router::new()
@@ -16,7 +24,15 @@ pub fn router(pool: SqlitePool) -> Router {
         // .route("/jobs", get(view_jobs))
         .route("/proposals", post(create_proposal))
         .route("/proposals/me", get(get_my_proposals))
-        .route_layer(middleware::from_fn_with_state(pool.clone(), freelancer_only))
-        .route_layer(middleware::from_fn_with_state(pool.clone(), auth_middleware))
+        .route("/jobs/apply", post(apply_for_job))
+        .route("/jobs/:job_id/status", get(get_job_user_status))
+        .route_layer(middleware::from_fn_with_state(
+            pool.clone(),
+            freelancer_only,
+        ))
+        .route_layer(middleware::from_fn_with_state(
+            pool.clone(),
+            auth_middleware,
+        ))
         .with_state(pool)
 }

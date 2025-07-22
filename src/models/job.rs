@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use validator::{Validate};
 use sqlx;
-
+use validator::Validate;
 
 #[derive(Serialize, Deserialize, Validate)]
 pub struct JobRequest {
@@ -49,17 +48,17 @@ pub struct JobsResponse {
     pub jobs: Vec<JobResponse>,
 }
 
-
-
 // Query parameters for filtering jobs
 #[derive(Debug, Deserialize, Validate)]
 pub struct JobFilterQuery {
+    #[validate(range(min = 1, message = "Id must be non-negative"))]
+    pub id: Option<u64>,
     #[validate(length(min = 1))]
     pub keyword: Option<String>, //Search in title/description
     #[validate(range(min = 0))]
     pub min_budget: Option<i32>, // Minimum budget
     #[validate(range(min = 0))]
-    pub max_budget: Option<i32>,// maximum budget
+    pub max_budget: Option<i32>, // maximum budget
     #[validate(length(min = 1))]
     pub skills: Option<String>, // filter by skills
     #[validate(length(min = 1))]
@@ -73,24 +72,88 @@ pub struct JobFilterQuery {
     #[validate(length(min = 1))]
     pub deadline_start: Option<String>, // e.g., "2025-05-20"
     #[validate(length(min = 1))]
-    pub deadline_end: Option<String>,   // e.g., "2025-06-01"
+    pub deadline_end: Option<String>, // e.g., "2025-06-01"
     #[validate(length(min = 1))]
     pub posted_at_start: Option<String>, // e.g., "2025-05-01"
     #[validate(length(min = 1))]
-    pub posted_at_end: Option<String>,   // e.g., "2025-05-17"
+    pub posted_at_end: Option<String>, // e.g., "2025-05-17"
     #[validate(length(min = 1))]
-    pub status: Option<String>,         // e.g., "open"
+    pub status: Option<String>, // e.g., "open"
     #[validate(length(min = 1))]
     pub sort_by: Option<String>, // sort by e.g. "budget:asc"
-    #[validate(range(min=1, max = 100))]
+    #[validate(range(min = 1, max = 100))]
     pub limit: Option<i64>, //pagination: max 100
     #[validate(range(min = 0))]
     pub offset: Option<i64>, // Pagination offset
-
 }
 
 #[derive(Serialize)]
-pub struct Categories{
+pub struct Categories {
     pub categories: Vec<String>,
 }
 
+#[derive(Deserialize, Validate)]
+pub struct ApplyJobPayload {
+    #[validate(range(min = 1, message = "Id must be non-negative"))]
+    pub job_id: i64,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct ApproveApplicationPayload {
+    #[validate(range(min = 1, message = "Id must be non-negative"))]
+    pub application_id: i64,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct CreateEscrowPayload {
+    #[validate(range(min = 1, message = "Id must be non-negative"))]
+    pub application_id: i64,
+    #[validate(length(equal = 44, message = "pda must be 44 characters long"))]
+    pub escrow_pda: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct ApplicantResponse {
+    pub application_id: Option<i64>,
+    pub freelancer_id: i64,
+    pub freelancer_username: String,
+    pub skills: Option<String>,
+    pub profile_ipfs_hash: Option<String>,
+    pub applied_at: String,
+    pub approved: Option<bool>,
+    pub approved_at: Option<String>,
+    pub freelancer_wallet: String,
+}
+#[derive(serde::Serialize)]
+pub struct MyJobsResponse {
+    pub job_id: i64,
+    pub title: String,
+    pub description: String,
+    pub skills: String,
+    pub budget: u64,
+    pub location: String,
+    pub posted_at: String,
+    pub deadline: String,
+    pub client_id: i64,
+    pub applied_at: String,
+    pub approved: Option<bool>,
+    pub is_saved: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Notification {
+    pub id: i64,
+    pub message: String,
+    pub read: bool,
+    pub created_at: String,
+    pub job_id: Option<i64>,
+    pub job_title: Option<String>,
+    pub username: Option<String>,
+    pub redirect_url: Option<String>,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct MarkReadPayload {
+    #[validate(range(min = 1, message = "Id must be non-negative"))]
+    pub id: i64, // Notification ID
+}
