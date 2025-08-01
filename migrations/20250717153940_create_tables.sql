@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     wallet_address TEXT UNIQUE,
     role TEXT NOT NULL CHECK ( role IN ('freelancer', 'client')),
     wallet_user BOOLEAN NOT NULL DEFAULT FALSE,
-    verified_wallet BOOLEAN NOT NULL DEFAULT FALSE
+    verified_wallet BOOLEAN NOT NULL DEFAULT FALSE,
+    admin BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Jobs
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     deadline TEXT NOT NULL,
     client_id INTEGER NOT NULL,
     category TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('open','closed','submitted', 'accepted', 'rejected', 'completed')),
+    status TEXT NOT NULL CHECK (status IN ('open','closed','submitted', 'completed')),
     FOREIGN KEY(client_id) REFERENCES users(id)
 );
 
@@ -144,6 +145,26 @@ CREATE TABLE IF NOT EXISTS saved_jobs (
     PRIMARY KEY (user_id, job_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS job_deliverables (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    application_id INTEGER NOT NULL UNIQUE, -- Links to approved application
+    ipfs_hash TEXT NOT NULL,
+    submitted BOOLEAN NOT NULL DEFAULT 0,
+    submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    disputed BOOLEAN DEFAULT 0,
+    disputed_at TEXT,
+    timeout_claimed BOOLEAN DEFAULT 0,
+    timeout_claimed_at TEXT,
+    review_requested BOOLEAN DEFAULT 0,
+    review_requested_at TEXT,
+    cancelled BOOLEAN DEFAULT 0,
+    cancelled_at TEXT,
+    resolved TEXT DEFAULT 0,
+    arbiter_id INTEGER REFERENCES users(id),
+    FOREIGN KEY (application_id) REFERENCES job_applications(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS notifications (

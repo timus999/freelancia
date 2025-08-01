@@ -1,7 +1,9 @@
-pub mod jwt;
 pub mod auth;
 pub mod bid;
-pub mod job;
-pub mod proposal;
+pub mod client;
+pub mod escrow;
 pub mod freelancer;
+pub mod job;
+pub mod jwt;
 pub mod profile;
+pub mod proposal;
