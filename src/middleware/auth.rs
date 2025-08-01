@@ -1,15 +1,9 @@
-use axum::{
-    http::{Request},
-    middleware::Next,
-    response::{Response},
-    extract::State,
-    Extension,
-};
+use crate::error::AppError;
+use crate::models::{auth::AuthUser, jwt::Claims};
+use axum::{extract::State, http::Request, middleware::Next, response::Response, Extension};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use crate::error::AppError;
-use crate::models::{auth::AuthUser, jwt::Claims};
 
 pub async fn auth_middleware(
     State(pool): axum::extract::State<SqlitePool>,
@@ -18,16 +12,16 @@ pub async fn auth_middleware(
 ) -> Result<Response, AppError> {
     // Extract the Authorization header and remove "Bearer " prefix
     let token = req
-    .headers()
-    .get("Authorization")
-    .and_then(|header| header.to_str().ok())
-    .and_then(|header| header.strip_prefix("Bearer "))
-    .ok_or(AppError::Unauthorized(
-        // Validate the presence of a valid Bearer token
-        // Edge case: Missing or malformed Authorization header
-        "Missing or invalid Authorization header".to_string(),
-    ))?
-    .to_string(); 
+        .headers()
+        .get("Authorization")
+        .and_then(|header| header.to_str().ok())
+        .and_then(|header| header.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized(
+            // Validate the presence of a valid Bearer token
+            // Edge case: Missing or malformed Authorization header
+            "Missing or invalid Authorization header".to_string(),
+        ))?
+        .to_string();
 
     // Check if token is blacklisted
     // Note: Blacklisting is used because JWTs are stateless and cannot be invalidated
@@ -35,7 +29,7 @@ pub async fn auth_middleware(
     // We store tokens in blacklisted_tokens to reject them immediately until their exp.
 
     let blacklisted = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM blacklisted_tokens WHERE token = ? AND expires_at > ?"
+        "SELECT COUNT(*) FROM blacklisted_tokens WHERE token = ? AND expires_at > ?",
     )
     .bind(&token)
     .bind(chrono::Utc::now().timestamp())
@@ -57,7 +51,11 @@ pub async fn auth_middleware(
     // Decode the JWT using the secret key from environment variable
     let claims = decode::<Claims>(
         &token,
-        &DecodingKey::from_secret(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set").as_ref()),
+        &DecodingKey::from_secret(
+            std::env::var("JWT_SECRET")
+                .expect("JWT_SECRET must be set")
+                .as_ref(),
+        ),
         &Validation::default(),
     )
     .map_err(|_| {
@@ -68,7 +66,7 @@ pub async fn auth_middleware(
 
     // Fetch user data from database using the user_id from JWT claims
     let user = sqlx::query!(
-        "SELECT wallet_address, verified_wallet FROM users WHERE id = ?",
+        "SELECT wallet_address, verified_wallet, admin FROM users WHERE id = ?",
         claims.user_id
     )
     .fetch_optional(&pool)
@@ -79,7 +77,7 @@ pub async fn auth_middleware(
     })?
     .ok_or(AppError::Unauthorized(
         // Edge case: User not found in database
-        "User not found".to_string()
+        "User not found".to_string(),
     ))?;
 
     // Create AuthUser struct to store authenticated user data
@@ -88,6 +86,7 @@ pub async fn auth_middleware(
         wallet_address: user.wallet_address,
         role: claims.role,
         verified_wallet: user.verified_wallet,
+        admin: Some(user.admin),
     };
 
     // Insert AuthUser into request extensions for downstream handlers
@@ -95,7 +94,6 @@ pub async fn auth_middleware(
 
     // New: Store the raw JWT token in extensions for logout handler
     req.extensions_mut().insert(token);
-
 
     // Proceed to the next middleware or handler
     Ok(next.run(req).await)
@@ -109,7 +107,9 @@ pub async fn freelancer_only(
     // Restrict access to users with the "freelancer" role
     if auth_user.role != "freelancer" {
         // Edge case: User attempts access with a non-freelancer role
-        return Err(AppError::Unauthorized("Freelancer role required".to_string()));
+        return Err(AppError::Unauthorized(
+            "Freelancer role required".to_string(),
+        ));
     }
 
     // Proceed to the next middleware or handler
@@ -152,7 +152,9 @@ pub async fn wallet_verified_only(
     // Require wallet verification if wallet_address is present
     if auth_user.wallet_address.is_some() && !user.verified_wallet {
         // Edge case: User has a wallet_address but it is not verified
-        return Err(AppError::Unauthorized("Wallet verification required".to_string()));
+        return Err(AppError::Unauthorized(
+            "Wallet verification required".to_string(),
+        ));
     }
 
     // Proceed to the next middleware or handler

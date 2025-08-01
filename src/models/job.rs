@@ -128,6 +128,7 @@ pub struct ApplicantResponse {
 pub struct MyJobsResponse {
     pub job_id: i64,
     pub title: String,
+    pub status: String,
     pub description: String,
     pub skills: String,
     pub budget: u64,
@@ -138,6 +139,7 @@ pub struct MyJobsResponse {
     pub applied_at: String,
     pub approved: Option<bool>,
     pub is_saved: i32,
+    pub application_id: i64,
 }
 
 #[derive(Debug, Serialize)]

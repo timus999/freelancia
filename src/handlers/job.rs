@@ -447,6 +447,14 @@ pub async fn approve_application(
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
 
+    sqlx::query!(
+        "UPDATE jobs SET status = 'closed'  WHERE id = ?",
+        record.job_id
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
     let msg = format!("{} has approved you application.", record.username);
 
     // Step 3: Create notification for freelancer
@@ -584,6 +592,7 @@ pub async fn get_user_jobs(
 SELECT 
     j.id AS job_id,
     j.title,
+    j.status,
     j.description,
     j.skills,
     j.budget,
@@ -593,13 +602,15 @@ SELECT
     j.client_id,
     ja.applied_at,
     ja.approved,
+    ja.id as application_id,
     CASE WHEN s.job_id IS NOT NULL THEN 1 ELSE 0 END AS is_saved
 FROM jobs j
 JOIN job_applications ja ON ja.job_id = j.id 
 LEFT JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ja.user_id
-WHERE ja.user_id = ?
+WHERE ja.user_id = ? OR ( j.client_id = ? AND ja.approved = 1)
 ORDER BY ja.applied_at DESC;
         "#,
+        auth_user.id,
         auth_user.id
     )
     .fetch_all(&pool)
@@ -610,6 +621,7 @@ ORDER BY ja.applied_at DESC;
         .into_iter()
         .map(|row| MyJobsResponse {
             job_id: row.job_id,
+            status: row.status,
             title: row.title,
             description: row.description,
             skills: row.skills,
@@ -621,6 +633,7 @@ ORDER BY ja.applied_at DESC;
             applied_at: row.applied_at,
             approved: row.approved,
             is_saved: row.is_saved,
+            application_id: row.application_id,
         })
         .collect();
 
@@ -642,10 +655,12 @@ pub async fn get_notifications(
             n.type,
             n.escrow_pda,
             j.title AS job_title,
-            pf.username AS username
+            pf.username AS username,
+            ja.id as application_id
         FROM notifications n
         LEFT JOIN jobs j ON n.job_id = j.id
         LEFT JOIN profiles pf ON n.actor_id = pf.user_id
+        LEFT JOIN job_applications ja ON ja.job_id = j.id
         WHERE n.user_id = ?
         ORDER BY n.created_at DESC
         "#,
@@ -661,6 +676,10 @@ pub async fn get_notifications(
             let redirect_url = match row.r#type.as_deref() {
                 Some("applied") => format!("/jobs/{}/applicants", row.job_id.unwrap_or_default()),
                 Some("approved") => format!("/jobs/{}", row.job_id.unwrap_or_default()),
+                Some("submitted") => {
+                    format!("/my-workspace/{}", row.application_id.unwrap_or_default())
+                }
+                Some("review") => format!("/my-jobs/{}", row.job_id.unwrap_or_default()),
                 Some("escrow") => match &row.escrow_pda {
                     Some(pda) => format!("/escrow/{}", pda),
                     None => "/escrow".to_string(),

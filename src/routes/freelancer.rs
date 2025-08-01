@@ -26,6 +26,9 @@ pub fn router(pool: SqlitePool) -> Router {
         .route("/proposals/me", get(get_my_proposals))
         .route("/jobs/apply", post(apply_for_job))
         .route("/jobs/:job_id/status", get(get_job_user_status))
+        .route("/my_jobs/:application_id", get(get_user_job_by_id))
+        .route("/my_jobs/submit-deliverable", post(submit_job_deliverable))
+        .route("/claim-timeout", post(claim_timeout))
         .route_layer(middleware::from_fn_with_state(
             pool.clone(),
             freelancer_only,

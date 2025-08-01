@@ -25,11 +25,8 @@ pub struct SignupResponse {
     pub verified_wallet: bool,
 }
 
-
-
 #[derive(Validate, Deserialize)]
 pub struct WalletConnectRequest {
-
     #[validate(length(equal = 44, message = "Invalid wallet address"))]
     pub wallet_address: String,
 }
@@ -39,8 +36,6 @@ pub struct WalletConnectResponse {
     pub message: String,
     pub wallet_user: bool,
 }
-
-
 
 #[derive(Serialize, Deserialize)]
 pub struct LoginRequest {
@@ -109,6 +104,7 @@ pub struct AuthUser {
     pub wallet_address: Option<String>,
     pub role: String,
     pub verified_wallet: bool,
+    pub admin: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Validate)]

@@ -1,4 +1,4 @@
-use crate::handlers::{auth::*, job::*, profile::*};
+use crate::handlers::{auth::*, escrow::*, job::*, profile::*};
 
 use crate::middleware::auth::{auth_middleware, wallet_verified_only};
 use axum::{
@@ -58,7 +58,11 @@ pub fn protected_routes(pool: SqlitePool) -> Router {
         )
         .route("/username-availability", get(check_username_availability))
         .route("/profile/basic", get(check_username_availability))
+        .route("/escrow/:escrow_pda", get(get_escrow))
         .route("/my-jobs", get(get_user_jobs))
+        .route("/raise-dispute", post(raise_dispute))
+        .route("/get-disputed-jobs", get(get_disputed_jobs_for_arbiter))
+        .route("/handle-resolve", post(arbiter_resolve))
         .route(
             "/profile/verified",
             get(profile_verified).route_layer(middleware::from_fn_with_state(
